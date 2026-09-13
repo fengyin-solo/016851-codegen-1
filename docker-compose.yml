@@ -1,0 +1,28 @@
+services:
+  # ============================================
+  # 前端用户端 - React Chat Interface
+  # 端口映射: 8081
+  # ============================================
+  frontend-user:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: frontend-user:latest
+    container_name: frontend-user
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    environment:
+      - NODE_ENV=production
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

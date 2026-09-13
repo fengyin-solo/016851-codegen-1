@@ -1,0 +1,38 @@
+.parameter-slider {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.parameter-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.parameter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.input-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.parameter-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.parameter-hint {
+  font-size: var(--font-size-xs);
+}
+
+/* Slider customization */
+.parameter-slider .ant-slider-mark-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}

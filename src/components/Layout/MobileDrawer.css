@@ -1,0 +1,13 @@
+.mobile-drawer .ant-drawer-content-wrapper {
+  max-width: 320px;
+}
+
+.mobile-drawer .ant-drawer-body {
+  padding: 0;
+  height: 100%;
+}
+
+.mobile-drawer .sidebar {
+  border-right: none;
+  height: 100%;
+}

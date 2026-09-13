@@ -1,0 +1,158 @@
+.input-area {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+.input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--spacing-sm);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border-light);
+  margin-bottom: var(--spacing-xs);
+}
+
+.template-library-btn {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  height: auto;
+}
+
+.template-library-btn:hover {
+  color: var(--color-primary);
+  background: var(--color-bg-tertiary);
+}
+
+.input-container:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+.input-content-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-md);
+}
+
+.message-input {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  resize: none;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  padding: var(--spacing-sm) !important;
+}
+
+.message-input:focus {
+  box-shadow: none !important;
+}
+
+.message-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-shrink: 0;
+}
+
+.send-button,
+.stop-button {
+  height: 40px;
+  min-width: 80px;
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+}
+
+.send-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.input-hint {
+  margin-top: var(--spacing-xs);
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+
+.hint-separator {
+  color: var(--color-border);
+}
+
+.template-hint {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-primary);
+  transition: opacity var(--transition-fast);
+}
+
+.template-hint:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .input-area {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .input-container {
+    padding: var(--spacing-xs);
+  }
+
+  .send-button,
+  .stop-button {
+    min-width: 70px;
+  }
+
+  .input-hint {
+    display: none;
+  }
+}
+
+/* 确保按钮文字和图标在所有状态下都清晰可见 */
+.send-button.ant-btn-primary,
+.stop-button.ant-btn-primary {
+  color: #ffffff !important;
+}
+
+.send-button.ant-btn-primary:disabled {
+  background-color: #d9d9d9 !important;
+  border-color: #d9d9d9 !important;
+  color: rgba(0, 0, 0, 0.25) !important;
+}
+
+.send-button.ant-btn-primary:not(:disabled) {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+}
+
+.send-button.ant-btn-primary .anticon,
+.stop-button.ant-btn-primary .anticon {
+  color: inherit !important;
+}

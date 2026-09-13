@@ -1,0 +1,39 @@
+.prompt-template-drawer .ant-drawer-body {
+  padding: 16px;
+}
+
+.template-library-header {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.template-count {
+  color: #999;
+  font-size: 12px;
+  margin-left: auto;
+}
+
+.template-library-content {
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.template-library-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.template-library-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.template-library-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.template-library-content::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}

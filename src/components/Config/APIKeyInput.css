@@ -1,0 +1,20 @@
+.api-key-input {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.input-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.input-error {
+  font-size: var(--font-size-xs);
+}
+
+.input-hint {
+  font-size: var(--font-size-xs);
+  text-align: left;
+}

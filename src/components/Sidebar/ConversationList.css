@@ -1,0 +1,19 @@
+.conversation-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+}
+
+.conversation-list-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-xl);
+  color: var(--color-text-tertiary);
+}
+
+.conversation-list-empty .ant-empty-description {
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}

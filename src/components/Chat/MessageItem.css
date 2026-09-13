@@ -1,0 +1,136 @@
+.message-item {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  max-width: 100%;
+}
+
+.message-item.user {
+  flex-direction: row-reverse;
+}
+
+.message-avatar {
+  flex-shrink: 0;
+}
+
+.message-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  max-width: 80%;
+  min-width: 0;
+}
+
+.message-item.user .message-content-wrapper {
+  align-items: flex-end;
+}
+
+.message-bubble {
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.message-item.user .message-bubble {
+  background: var(--color-primary);
+  color: white;
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.message-item.assistant .message-bubble {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.message-bubble.streaming {
+  position: relative;
+}
+
+.message-bubble.streaming::after {
+  content: '▋';
+  animation: blink 1s step-end infinite;
+  color: var(--color-primary);
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.message-bubble.error {
+  border: 1px solid var(--color-error);
+}
+
+.message-content {
+  line-height: var(--line-height-relaxed);
+}
+
+.message-content p {
+  margin: 0;
+}
+
+.message-item.user .message-content p {
+  white-space: pre-wrap;
+}
+
+.message-error {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-error);
+}
+
+.message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  min-height: 24px;
+}
+
+.message-item.user .message-footer {
+  flex-direction: row-reverse;
+}
+
+.message-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.stat-divider {
+  color: var(--color-border);
+}
+
+.message-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.message-item:hover .message-actions {
+  opacity: 1;
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .message-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  .message-content-wrapper {
+    max-width: 85%;
+  }
+
+  .message-actions {
+    opacity: 1;
+  }
+}

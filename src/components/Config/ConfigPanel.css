@@ -1,0 +1,26 @@
+.config-panel .ant-drawer-body {
+  padding: 0;
+}
+
+.config-panel-content {
+  padding: var(--spacing-md);
+}
+
+.config-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.section-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.config-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-sm);
+}
