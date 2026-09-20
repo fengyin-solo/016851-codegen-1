@@ -50,6 +50,33 @@ export interface CreateMessageParams {
 }
 
 /**
+ * 流式响应所处的阶段
+ * - connecting: 已发送请求，正在建立连接 / 等待首个响应片段
+ * - receiving: 已收到首个片段，正在接收后续内容
+ */
+export type StreamingStage = 'connecting' | 'receiving';
+
+/**
+ * 流式响应中断原因
+ */
+export type InterruptionReason = 'error' | 'manual';
+
+/**
+ * 流式响应中断记录
+ * 用于在等待超时或手动停止后，展示「停在了哪一步」
+ */
+export interface StreamInterruption {
+  /** 中断时所处的阶段 */
+  stage: StreamingStage;
+  /** 中断原因（错误/超时 或 手动停止） */
+  reason: InterruptionReason;
+  /** 被中断的消息 ID */
+  messageId: string | null;
+  /** 中断发生时间戳 */
+  timestamp: number;
+}
+
+/**
  * API 请求的消息格式
  */
 export interface APIMessage {

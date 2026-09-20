@@ -5,10 +5,21 @@ import type { Message } from '../../types';
 import { MessageItem } from './MessageItem';
 import './MessageList.css';
 
+/** 定位高亮持续时间（毫秒） */
+const LOCATE_HIGHLIGHT_DURATION = 1600;
+
+/** 定位请求：nonce 用于区分对同一条消息的连续定位 */
+export interface LocateRequest {
+  messageId: string;
+  nonce: number;
+}
+
 interface MessageListProps {
   messages: Message[];
   isStreaming: boolean;
   streamingMessageId: string | null;
+  /** 定位到指定消息的请求（滚动并短暂高亮） */
+  locateRequest?: LocateRequest | null;
 }
 
 /**
@@ -18,6 +29,7 @@ export function MessageList({
   messages,
   isStreaming,
   streamingMessageId,
+  locateRequest,
 }: MessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -28,6 +40,31 @@ export function MessageList({
       bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isStreaming]);
+
+  // 响应定位请求：滚动到目标消息并短暂高亮
+  useEffect(() => {
+    if (!locateRequest) return;
+
+    const container = listRef.current;
+    if (!container) return;
+
+    const target = container.querySelector<HTMLElement>(
+      `[data-message-id="${locateRequest.messageId}"]`
+    );
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('message-locate-highlight');
+
+    const timer = setTimeout(() => {
+      target.classList.remove('message-locate-highlight');
+    }, LOCATE_HIGHLIGHT_DURATION);
+
+    return () => {
+      clearTimeout(timer);
+      target.classList.remove('message-locate-highlight');
+    };
+  }, [locateRequest]);
 
   if (messages.length === 0) {
     return (

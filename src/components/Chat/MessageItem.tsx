@@ -25,7 +25,10 @@ export const MessageItem = memo(function MessageItem({
   const showStats = isAssistant && message.status === 'complete' && message.stats;
 
   return (
-    <div className={`message-item ${isUser ? 'user' : 'assistant'} animate-fadeInUp`}>
+    <div
+      className={`message-item ${isUser ? 'user' : 'assistant'} animate-fadeInUp`}
+      data-message-id={message.id}
+    >
       <div className="message-avatar">
         <Avatar
           size={36}

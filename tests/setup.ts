@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, afterEach } from 'vitest'
 
-// Mock localStorage
+// Mock localStorage（在缺少 localStorage 的环境中注入，例如 node 测试环境）
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
   return {
@@ -17,9 +17,12 @@ const localStorageMock = (() => {
   }
 })()
 
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-})
+if (typeof globalThis.localStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: localStorageMock,
+    configurable: true,
+  })
+}
 
 beforeAll(() => {
   // Setup before all tests
