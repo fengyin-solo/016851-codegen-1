@@ -16,25 +16,34 @@ function createClient(config: APIConfig): OpenAI {
  * 发送消息并获取流式响应
  * @param messages 消息数组
  * @param config API 配置
+ * @param options.signal 用于中止底层请求
+ * @param options.onConnected 连接建立（拿到响应头）时回调
  * @returns 异步迭代器，产出响应内容片段
  */
 export async function* sendMessageStream(
   messages: APIMessage[],
-  config: APIConfig
+  config: APIConfig,
+  options: { signal?: AbortSignal; onConnected?: () => void } = {},
 ): AsyncGenerator<string, void, unknown> {
   const client = createClient(config);
-  
-  const stream = await client.chat.completions.create({
-    model: config.model,
-    messages: messages.map(msg => ({
-      role: msg.role,
-      content: msg.content,
-    })),
-    temperature: config.temperature,
-    max_tokens: config.maxTokens,
-    stream: true,
-  });
-  
+
+  const stream = await client.chat.completions.create(
+    {
+      model: config.model,
+      messages: messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      temperature: config.temperature,
+      max_tokens: config.maxTokens,
+      stream: true,
+    },
+    options.signal ? { signal: options.signal } : undefined,
+  );
+
+  // 已拿到响应头，连接建立
+  options.onConnected?.();
+
   for await (const chunk of stream) {
     const content = chunk.choices[0]?.delta?.content;
     if (content) {

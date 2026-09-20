@@ -6,6 +6,7 @@ import { MarkdownRenderer } from '../Common/MarkdownRenderer';
 import { CopyButton } from '../Common/CopyButton';
 import { TypingIndicator } from '../Common/LoadingIndicator';
 import { formatResponseTime, formatTokenCount } from '../../utils/formatters';
+import { PHASE_LABELS, STOP_REASON_LABELS } from './overviewModel';
 import './MessageItem.css';
 
 interface MessageItemProps {
@@ -23,6 +24,8 @@ export const MessageItem = memo(function MessageItem({
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
   const showStats = isAssistant && message.status === 'complete' && message.stats;
+  const stopInfo = isAssistant ? message.stopInfo : undefined;
+  const isEmptyError = message.status === 'error' && !message.content;
 
   return (
     <div className={`message-item ${isUser ? 'user' : 'assistant'} animate-fadeInUp`}>
@@ -41,6 +44,10 @@ export const MessageItem = memo(function MessageItem({
         <div className={`message-bubble ${message.status}`}>
           {isStreaming && message.status === 'streaming' && !message.content ? (
             <TypingIndicator />
+          ) : isEmptyError ? (
+            <div className="message-content message-content-empty-error">
+              <p>（未收到任何回复内容）</p>
+            </div>
           ) : (
             <div className="message-content">
               {isUser ? (
@@ -54,6 +61,12 @@ export const MessageItem = memo(function MessageItem({
           {message.status === 'error' && (
             <div className="message-error">
               <span>消息发送失败</span>
+              {stopInfo && (
+                <span className="message-error-stop">
+                  {STOP_REASON_LABELS[stopInfo.reason]}
+                  {stopInfo.phase && ` · 停在「${PHASE_LABELS[stopInfo.phase]}」`}
+                </span>
+              )}
             </div>
           )}
         </div>

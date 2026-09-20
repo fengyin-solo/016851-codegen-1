@@ -84,6 +84,17 @@
   color: var(--color-error);
 }
 
+.message-error-stop {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+}
+
+.message-content-empty-error p {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
+
 .message-footer {
   display: flex;
   align-items: center;

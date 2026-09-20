@@ -4,9 +4,14 @@ import { useChatStore } from '../stores/chatStore';
 import { useConfigStore } from '../stores/configStore';
 import { useUIStore } from '../stores/uiStore';
 import { sendMessageStream } from '../services/api';
-import { createStreamHandler, toMessageStats } from '../services/stream';
+import {
+  createStreamHandler,
+  toMessageStats,
+  PHASE_LABELS,
+  type StreamTimeoutError,
+} from '../services/stream';
 import { parseError, logError, shouldShowConfigPanel } from '../services/errorHandler';
-import type { APIMessage } from '../types';
+import type { APIMessage, StopInfo } from '../types';
 
 // 创建流处理器实例
 const streamHandler = createStreamHandler();
@@ -26,6 +31,7 @@ export function useChat() {
     setActiveConversation,
     addMessage,
     startStreaming,
+    setStreamingPhase,
     appendStreamContent,
     finishStreaming,
     cancelStreaming,
@@ -72,33 +78,62 @@ export function useChat() {
       // 开始流式响应
       startStreaming(activeConversationId);
 
+      const signal = streamHandler.prepare({
+        onChunk: (chunk) => {
+          appendStreamContent(chunk);
+        },
+        onPhaseChange: (phase) => {
+          setStreamingPhase(phase);
+        },
+        onComplete: (stats) => {
+          finishStreaming(toMessageStats(stats));
+        },
+        onError: (error) => {
+          const appError = parseError(error);
+          logError(appError, 'useChat.sendMessage');
+          message.error(appError.message);
+
+          let stopInfo: StopInfo | undefined;
+          if ((error as StreamTimeoutError | undefined)?.isTimeout) {
+            const timeoutError = error as StreamTimeoutError;
+            stopInfo = {
+              reason: 'timeout',
+              phase: timeoutError.phase,
+              elapsed: timeoutError.elapsed,
+            };
+            message.warning(`等待超时，停在「${PHASE_LABELS[timeoutError.phase]}」阶段`);
+          }
+
+          cancelStreaming(stopInfo);
+
+          if (shouldShowConfigPanel(appError)) {
+            setConfigPanelVisible(true);
+          }
+        },
+      });
+
       try {
-        const stream = sendMessageStream(apiMessages, {
-          ...config,
-          stream: true,
-        });
+        const stream = sendMessageStream(
+          apiMessages,
+          {
+            ...config,
+            stream: true,
+          },
+          {
+            signal,
+            onConnected: () => streamHandler.notifyConnected(),
+          },
+        );
 
-        await streamHandler.start(stream, {
-          onChunk: (chunk) => {
-            appendStreamContent(chunk);
-          },
-          onComplete: (stats) => {
-            finishStreaming(toMessageStats(stats));
-          },
-          onError: (error) => {
-            const appError = parseError(error);
-            logError(appError, 'useChat.sendMessage');
-            message.error(appError.message);
-            cancelStreaming();
-
-            if (shouldShowConfigPanel(appError)) {
-              setConfigPanelVisible(true);
-            }
-          },
-        });
+        await streamHandler.consume(stream);
       } catch (error) {
+        // 创建请求阶段（建立连接）就失败：清理处理器内部计时器
+        streamHandler.abort();
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return;
+        }
         const appError = parseError(error);
-        logError(appError, 'useChat.sendMessage');
+        logError(appError, 'useChat.sendMessage.connect');
         message.error(appError.message);
         cancelStreaming();
 
@@ -114,6 +149,7 @@ export function useChat() {
       messages,
       addMessage,
       startStreaming,
+      setStreamingPhase,
       appendStreamContent,
       finishStreaming,
       cancelStreaming,
@@ -126,7 +162,7 @@ export function useChat() {
    */
   const stopStreaming = useCallback(() => {
     streamHandler.abort();
-    cancelStreaming();
+    cancelStreaming({ reason: 'aborted' });
     message.info('已停止响应');
   }, [cancelStreaming]);
 

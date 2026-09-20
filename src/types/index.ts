@@ -12,6 +12,9 @@ export type {
   MessageStats,
   CreateMessageParams,
   APIMessage,
+  StreamPhase,
+  StopReason,
+  StopInfo,
 } from './message'
 
 export type {

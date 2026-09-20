@@ -17,9 +17,20 @@ const localStorageMock = (() => {
   }
 })()
 
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-})
+if (typeof globalThis.localStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: localStorageMock,
+    configurable: true,
+  })
+}
+
+// jsdom 环境下 window 存在；node 环境下兜底补上
+if (typeof (globalThis as { window?: typeof globalThis }).window === 'undefined') {
+  Object.defineProperty(globalThis, 'window', {
+    value: globalThis,
+    configurable: true,
+  })
+}
 
 beforeAll(() => {
   // Setup before all tests

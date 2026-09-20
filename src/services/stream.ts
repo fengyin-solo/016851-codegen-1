@@ -1,4 +1,4 @@
-import type { MessageStats } from '../types';
+import type { MessageStats, StreamPhase } from '../types';
 
 /**
  * 响应统计信息
@@ -13,6 +13,24 @@ export interface ResponseStats {
 }
 
 /**
+ * 各阶段超时配置（毫秒）
+ * - connectTimeout: 建立连接（拿到响应头）
+ * - firstChunkTimeout: 连接成功后等待首个内容片段
+ * - chunkTimeout: 生成过程中相邻两个内容片段的最大间隔
+ */
+export interface StreamTimeoutOptions {
+  connectTimeout?: number;
+  firstChunkTimeout?: number;
+  chunkTimeout?: number;
+}
+
+export const DEFAULT_STREAM_TIMEOUTS = {
+  connectTimeout: 15_000,
+  firstChunkTimeout: 30_000,
+  chunkTimeout: 60_000,
+} as const;
+
+/**
  * 流处理器回调
  */
 export interface StreamCallbacks {
@@ -20,13 +38,46 @@ export interface StreamCallbacks {
   onChunk: (chunk: string) => void;
   /** 流完成时调用 */
   onComplete: (stats: ResponseStats) => void;
-  /** 发生错误时调用 */
+  /** 发生错误（含超时）时调用 */
   onError: (error: Error) => void;
+  /** 生成阶段发生变化时调用 */
+  onPhaseChange?: (phase: StreamPhase) => void;
 }
+
+/**
+ * 流式响应超时错误
+ * 携带超时时所处的阶段，便于界面展示“停在哪一步”
+ */
+export class StreamTimeoutError extends Error {
+  readonly isTimeout = true as const;
+  readonly phase: StreamPhase;
+  readonly elapsed: number;
+
+  constructor(phase: StreamPhase, elapsed: number, timeout: number) {
+    super(`响应超时：在「${PHASE_LABELS[phase]}」阶段等待超过 ${Math.round(timeout / 1000)} 秒`);
+    this.name = 'StreamTimeoutError';
+    this.phase = phase;
+    this.elapsed = elapsed;
+  }
+}
+
+/**
+ * 各阶段的中文标签
+ */
+export const PHASE_LABELS: Record<StreamPhase, string> = {
+  connecting: '建立连接',
+  waiting: '等待首个回复',
+  streaming: '接收回复内容',
+};
 
 /**
  * 流处理器类
  * 管理流式响应的生命周期
+ *
+ * 生命周期拆分为两步：
+ * - prepare: 初始化定时器/中止控制器，随后再创建底层请求；
+ * - consume: 迭代流内容。
+ * 这样“建立连接”阶段也能被超时覆盖。
  */
 export class StreamHandler {
   private abortController: AbortController | null = null;
@@ -34,16 +85,22 @@ export class StreamHandler {
   private startTime = 0;
   private firstByteTime: number | null = null;
   private accumulatedContent = '';
+  private callbacks: StreamCallbacks | null = null;
+  private timeouts: Required<StreamTimeoutOptions> = { ...DEFAULT_STREAM_TIMEOUTS };
+  private phase: StreamPhase = 'connecting';
+  private phaseTimer: ReturnType<typeof setTimeout> | null = null;
+  private timedOut = false;
 
   /**
-   * 开始处理流
-   * @param stream 异步迭代器
+   * 准备一次新的流处理（在创建底层请求之前调用）
    * @param callbacks 回调函数
+   * @param timeoutOptions 各阶段超时配置
+   * @returns 可传给底层请求的 AbortSignal
    */
-  async start(
-    stream: AsyncGenerator<string, void, unknown>,
-    callbacks: StreamCallbacks
-  ): Promise<void> {
+  prepare(
+    callbacks: StreamCallbacks,
+    timeoutOptions: StreamTimeoutOptions = {}
+  ): AbortSignal {
     if (this.isActive) {
       this.abort();
     }
@@ -53,42 +110,95 @@ export class StreamHandler {
     this.startTime = Date.now();
     this.firstByteTime = null;
     this.accumulatedContent = '';
+    this.callbacks = callbacks;
+    this.timedOut = false;
+    this.timeouts = { ...DEFAULT_STREAM_TIMEOUTS, ...timeoutOptions };
+    this.phase = 'connecting';
+
+    this.armPhaseTimer(this.timeouts.connectTimeout);
+    this.callbacks.onPhaseChange?.(this.phase);
+
+    return this.abortController.signal;
+  }
+
+  /**
+   * 连接已建立（拿到响应头）
+   */
+  notifyConnected(): void {
+    if (!this.isActive || this.phase !== 'connecting') return;
+    this.setPhase('waiting');
+    this.armPhaseTimer(this.timeouts.firstChunkTimeout);
+  }
+
+  /**
+   * 消费流内容
+   * @param stream 异步迭代器
+   */
+  async consume(
+    stream: AsyncGenerator<string, void, unknown>
+  ): Promise<void> {
+    if (!this.isActive || !this.callbacks) {
+      return;
+    }
 
     try {
       for await (const chunk of stream) {
-        // 检查是否已中止
         if (this.abortController?.signal.aborted) {
           break;
         }
 
-        // 记录首字节时间
+        // 首个有效片段：进入流式接收阶段
         if (this.firstByteTime === null) {
           this.firstByteTime = Date.now() - this.startTime;
+          this.setPhase('streaming');
         }
 
+        // 每个片段后重新计时，监控片段之间的间隔
+        this.armPhaseTimer(this.timeouts.chunkTimeout);
+
         this.accumulatedContent += chunk;
-        callbacks.onChunk(chunk);
+        this.callbacks.onChunk(chunk);
       }
 
       // 流正常完成
-      if (!this.abortController?.signal.aborted) {
-        const stats = this.calculateStats();
-        callbacks.onComplete(stats);
+      if (!this.abortController?.signal.aborted && !this.timedOut) {
+        this.clearPhaseTimer();
+        this.callbacks.onComplete(this.calculateStats());
       }
     } catch (error) {
-      if (!this.abortController?.signal.aborted) {
-        callbacks.onError(error instanceof Error ? error : new Error(String(error)));
+      // 超时已经主动上报过；手动中止无需上报
+      if (this.timedOut || this.abortController?.signal.aborted) {
+        // 吞掉中止底层请求时 SDK 抛出的错误
+      } else if (this.callbacks) {
+        this.clearPhaseTimer();
+        this.callbacks.onError(error instanceof Error ? error : new Error(String(error)));
       }
     } finally {
       this.isActive = false;
       this.abortController = null;
+      this.callbacks = null;
+      this.clearPhaseTimer();
     }
+  }
+
+  /**
+   * 开始处理流（兼容旧用法：prepare + consume）
+   * 注意：此入口无法在“建立连接”期间触发超时，新代码请使用 prepare/consume
+   */
+  async start(
+    stream: AsyncGenerator<string, void, unknown>,
+    callbacks: StreamCallbacks,
+    timeoutOptions: StreamTimeoutOptions = {}
+  ): Promise<void> {
+    this.prepare(callbacks, timeoutOptions);
+    await this.consume(stream);
   }
 
   /**
    * 中止当前流
    */
   abort(): void {
+    this.clearPhaseTimer();
     if (this.abortController) {
       this.abortController.abort();
       this.isActive = false;
@@ -107,6 +217,59 @@ export class StreamHandler {
    */
   getAccumulatedContent(): string {
     return this.accumulatedContent;
+  }
+
+  /**
+   * 当前所处阶段
+   */
+  getPhase(): StreamPhase {
+    return this.phase;
+  }
+
+  /**
+   * 为当前阶段启动超时计时
+   */
+  private armPhaseTimer(timeout: number): void {
+    this.clearPhaseTimer();
+    this.phaseTimer = setTimeout(() => {
+      this.handleTimeout();
+    }, timeout);
+  }
+
+  private clearPhaseTimer(): void {
+    if (this.phaseTimer !== null) {
+      clearTimeout(this.phaseTimer);
+      this.phaseTimer = null;
+    }
+  }
+
+  private setPhase(phase: StreamPhase): void {
+    this.phase = phase;
+    this.callbacks?.onPhaseChange?.(phase);
+  }
+
+  /**
+   * 超时处理：中止底层请求并上报带阶段信息的错误
+   */
+  private handleTimeout(): void {
+    if (!this.isActive || !this.callbacks) return;
+
+    this.timedOut = true;
+    const timeout =
+      this.phase === 'connecting'
+        ? this.timeouts.connectTimeout
+        : this.phase === 'waiting'
+          ? this.timeouts.firstChunkTimeout
+          : this.timeouts.chunkTimeout;
+    const elapsed = Date.now() - this.startTime;
+    const error = new StreamTimeoutError(this.phase, elapsed, timeout);
+
+    this.clearPhaseTimer();
+    if (this.abortController) {
+      this.abortController.abort();
+      this.isActive = false;
+    }
+    this.callbacks.onError(error);
   }
 
   /**
@@ -131,13 +294,13 @@ export class StreamHandler {
     if (!text) return 0;
 
     // 中文字符约 2 token
-    const chineseChars = (text.match(/[\u4e00-\u9fff]/g) || []).length;
+    const chineseChars = (text.match(/[一-鿿]/g) || []).length;
     // 英文单词约 1 token
     const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
     // 数字
     const numbers = (text.match(/\d+/g) || []).length;
     // 标点符号
-    const punctuation = (text.match(/[^\w\s\u4e00-\u9fff]/g) || []).length;
+    const punctuation = (text.match(/[^\w\s一-鿿]/g) || []).length;
 
     return chineseChars * 2 + englishWords + numbers + punctuation;
   }

@@ -39,6 +39,31 @@
   height: 1px;
 }
 
+/* 概览定位时的高亮 */
+.message-list-item {
+  border-radius: var(--radius-md);
+  scroll-margin-block: var(--spacing-md);
+}
+
+.message-item-highlight {
+  animation: messageHighlightFlash 2s ease-out;
+}
+
+@keyframes messageHighlightFlash {
+  0% {
+    background: var(--color-primary-light);
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+  70% {
+    background: var(--color-primary-light);
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+  100% {
+    background: transparent;
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
 /* Custom scrollbar for message list */
 .message-list::-webkit-scrollbar {
   width: 6px;

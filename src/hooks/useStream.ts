@@ -40,7 +40,7 @@ export function useStream(options: UseStreamOptions = {}): UseStreamReturn {
       const handler = new StreamHandler();
       handlerRef.current = handler;
 
-      await handler.start(stream, {
+      handler.prepare({
         onChunk: (chunk) => {
           setContent((prev) => prev + chunk);
           options.onChunk?.(chunk);
@@ -56,6 +56,7 @@ export function useStream(options: UseStreamOptions = {}): UseStreamReturn {
           options.onError?.(err);
         },
       });
+      await handler.consume(stream);
     },
     [options]
   );

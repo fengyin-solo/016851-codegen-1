@@ -1,3 +1,5 @@
+import type { StreamPhase } from '../types';
+
 /**
  * 错误类型枚举
  */
@@ -7,6 +9,7 @@ export enum ErrorType {
   RATE_LIMIT = 'RATE_LIMIT',
   INVALID_REQUEST = 'INVALID_REQUEST',
   STREAM_ERROR = 'STREAM_ERROR',
+  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
   STORAGE_ERROR = 'STORAGE_ERROR',
   UNKNOWN = 'UNKNOWN',
 }
@@ -25,6 +28,10 @@ export interface AppError {
   retryable: boolean;
   /** 建议等待时间（毫秒） */
   retryAfter?: number;
+  /** 超时发生时所处的阶段（仅超时错误） */
+  timeoutPhase?: StreamPhase;
+  /** 超时时已耗时（毫秒，仅超时错误） */
+  elapsed?: number;
 }
 
 /**
@@ -36,6 +43,7 @@ const ERROR_MESSAGES: Record<ErrorType, string> = {
   [ErrorType.RATE_LIMIT]: '请求过于频繁，请稍后再试',
   [ErrorType.INVALID_REQUEST]: '请求参数无效，请检查输入',
   [ErrorType.STREAM_ERROR]: '响应中断，已保留部分内容',
+  [ErrorType.TIMEOUT_ERROR]: '响应超时，请稍后重试',
   [ErrorType.STORAGE_ERROR]: '存储失败，数据可能丢失',
   [ErrorType.UNKNOWN]: '发生未知错误，请稍后重试',
 };
@@ -94,6 +102,30 @@ function extractAPIMessage(error: unknown): string | null {
  * @returns AppError 对象
  */
 export function parseError(error: unknown): AppError {
+  // 处理流式响应超时（StreamTimeoutError 带结构化标记）
+  if (
+    error &&
+    typeof error === 'object' &&
+    (error as { isTimeout?: boolean }).isTimeout === true
+  ) {
+    const timeoutError = error as {
+      message?: string;
+      phase?: StreamPhase;
+      elapsed?: number;
+    };
+    const phase = timeoutError.phase ?? 'waiting';
+    return {
+      type: ErrorType.TIMEOUT_ERROR,
+      message:
+        timeoutError.message ||
+        `${ERROR_MESSAGES[ErrorType.TIMEOUT_ERROR]}（停在「${getPhaseName(phase)}」阶段）`,
+      details: error,
+      retryable: true,
+      timeoutPhase: phase,
+      elapsed: typeof timeoutError.elapsed === 'number' ? timeoutError.elapsed : undefined,
+    };
+  }
+
   // 先尝试提取 API 返回的原始错误消息
   const apiMessage = extractAPIMessage(error);
 
@@ -229,10 +261,23 @@ export function getErrorTypeName(type: ErrorType): string {
     [ErrorType.RATE_LIMIT]: '请求限流',
     [ErrorType.INVALID_REQUEST]: '请求无效',
     [ErrorType.STREAM_ERROR]: '流式错误',
+    [ErrorType.TIMEOUT_ERROR]: '响应超时',
     [ErrorType.STORAGE_ERROR]: '存储错误',
     [ErrorType.UNKNOWN]: '未知错误',
   };
   return names[type];
+}
+
+/**
+ * 获取超时阶段的中文名称
+ */
+export function getPhaseName(phase: StreamPhase): string {
+  const names: Record<StreamPhase, string> = {
+    connecting: '建立连接',
+    waiting: '等待首个回复',
+    streaming: '接收回复内容',
+  };
+  return names[phase];
 }
 
 /**

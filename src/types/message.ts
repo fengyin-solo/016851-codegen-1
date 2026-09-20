@@ -9,6 +9,31 @@ export type MessageRole = 'user' | 'assistant' | 'system';
 export type MessageStatus = 'pending' | 'streaming' | 'complete' | 'error';
 
 /**
+ * 流式响应所处阶段
+ */
+export type StreamPhase = 'connecting' | 'waiting' | 'streaming';
+
+/**
+ * 响应停止原因
+ * - timeout: 等待超时
+ * - aborted: 用户手动停止
+ * - interrupted: 页面重新进入时，上一次生成仍未完成（无法继续）
+ */
+export type StopReason = 'timeout' | 'aborted' | 'interrupted';
+
+/**
+ * 停止信息（记录一次生成停在了哪里）
+ */
+export interface StopInfo {
+  /** 停止原因 */
+  reason: StopReason;
+  /** 停止时所处阶段（超时场景用于定位停顿步骤） */
+  phase?: StreamPhase;
+  /** 已耗时（毫秒） */
+  elapsed?: number;
+}
+
+/**
  * 消息统计信息
  */
 export interface MessageStats {
@@ -38,6 +63,8 @@ export interface Message {
   status: MessageStatus;
   /** 统计信息（仅 assistant 消息） */
   stats?: MessageStats;
+  /** 停止信息（生成未正常完成时记录停留阶段等） */
+  stopInfo?: StopInfo;
 }
 
 /**
